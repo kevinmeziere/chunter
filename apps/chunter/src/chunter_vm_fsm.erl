@@ -53,7 +53,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {hypervisor, type, uuid, console, zonedoor, listeners = []}).
+-record(state, {hypervisor, type, uuid, console, listeners = []}).
 
 %%%===================================================================
 %%% API
@@ -155,6 +155,7 @@ init([UUID]) ->
     libsniffle:vm_register(UUID, Hypervisor),
     timer:send_interval(900000, update_snapshots), % This is every 15 minutes
     snapshot_sizes(UUID),
+    zdoor:open(UUID, "_joyent_sshd_key_is_authorized"),
     {ok, initialized, #state{uuid = UUID, hypervisor = Hypervisor}}.
 
 %%--------------------------------------------------------------------
@@ -443,16 +444,15 @@ handle_info({C, {data, Data}}, StateName, State = #state{console = C,
     [ L ! {data, Data} || L <- Ls1],
     {next_state, StateName, State#state{listeners = Ls1}};
 
-handle_info({D, {data, {eol, Data}}}, StateName,
+handle_info({zdoor, Req, Data}, StateName,
             State = #state{
-                       zonedoor = D,
                        uuid = UUID
                       }) ->
-io:format("~s~n", [Data]),
+    io:format("~s~n", [Data]),
     case re:split(Data, " ") of
         [User, _, KeyID] ->
             lager:warning("[zonedoor:~s] User ~s trying to connect with key ~s",
-                       [UUID, User, KeyID]),
+                          [UUID, User, KeyID]),
             KeyBin = libsnarl:keystr_to_id(KeyID),
             case libsnarl:user_key_find(KeyBin) of
                 {ok, UserID} ->
@@ -460,14 +460,14 @@ io:format("~s~n", [Data]),
                         libsnarl:allowed(UserID, [<<"vms">>, UUID, <<"ssh">>, User]) of
                         true ->
                             lager:warning("[zonedoor:~s] granted.", [UUID]),
-                            port_command(D, "1\n");
+                            zdoor:reply(Req, <<"1\n">>);
                         _ ->
                             lager:warning("[zonedoor:~s] denied.", [UUID]),
-                            port_command(D, "0\n")
+                            zdoor:reply(Req, <<"0\n">>)
                     end;
                 _ ->
                     lager:warning("[zonedoor:~s] denied.", [UUID]),
-                    port_command(D, "0\n")
+                    zdoor:reply(Req, <<"0\n">>)
             end;
         _ ->
             lager:warning("[zonedoor:~s] can't parse auth request: ~s.", [UUID, Data]),
@@ -483,14 +483,6 @@ handle_info({_C,{exit_status,1}}, StateName,
     timer:send_after(1000, init_console),
     {next_state, StateName, State};
 
-handle_info({_D,{exit_status,1}}, StateName,
-            State = #state{
-                       zonedoor = _D,
-                       type = zone
-                      }) ->
-    timer:send_after(1000, init_zonedoor),
-    {next_state, StateName, State};
-
 handle_info(update_snapshots, StateName, State) ->
     snapshot_sizes(State#state.uuid),
     {next_state, StateName, State};
@@ -498,15 +490,11 @@ handle_info(update_snapshots, StateName, State) ->
 handle_info(get_info, StateName, State) ->
     Info = chunter_vmadm:info(State#state.uuid),
     State1 = init_console(State),
-    State2 = init_zonedoor(State1),
     libsniffle:vm_set(State#state.uuid, <<"info">>, Info),
-    {next_state, StateName, State2};
+    {next_state, StateName, State1};
 
 handle_info(init_console, StateName, State) ->
     {next_state, StateName, init_console(State)};
-
-handle_info(init_zonedoor, StateName, State) ->
-    {next_state, StateName, init_zonedoor(State)};
 
 handle_info(Info, StateName, State) ->
     lager:warning("unknown data: ~p", [Info]),
@@ -532,15 +520,7 @@ terminate(_Reason, _StateName, State) ->
         _ ->
             port_close(State#state.console)
     end,
-    case erlang:port_info(State#state.zonedoor) of
-        undefined ->
-            lager:warning("ssh door not running"),
-            ok;
-        _ ->
-            %% Since the SSH process does not close with a exit we kill it with
-            %% fire!
-            incinerate(State#state.zonedoor)
-    end,
+    zdoor:cose(State#state.uuid, "_joyent_sshd_key_is_authorized"),
     ok.
 
 
@@ -560,13 +540,6 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-incinerate(Port) ->
-    %{os_pid, OsPid} = erlang:port_info(Port, os_pid),
-    port_close(Port).%,
-    %lager:warning("Killing ~p with -9", [OsPid]),
-    %os:cmd(io_lib:format("/usr/bin/kill -9 ~p", [OsPid])).
-
-
 init_console(State = #state{console = _C}) when is_port(_C) ->
     State;
 
@@ -575,20 +548,6 @@ init_console(State) ->
     Console = code:priv_dir(chunter) ++ "/runpty /usr/sbin/zlogin -C " ++ binary_to_list(Name),
     ConsolePort = open_port({spawn, Console}, [binary]),
     State#state{console = ConsolePort}.
-
-init_zonedoor(State) ->
-    case erlang:port_info(State#state.zonedoor) of
-        undefined ->
-            Cmd = code:priv_dir(chunter) ++ "/zonedoor",
-            Args = [binary_to_list(State#state.uuid), "_joyent_sshd_key_is_authorized"],
-            lager:warning("[zonedoor] Starting with cmd: ~s ~s ~s~n", [Cmd | Args]),
-            DoorPort = open_port({spawn_executable, Cmd},
-                                 [{args, Args}, use_stdio, binary, {line, 1024}, exit_status]),
-            State#state{zonedoor = DoorPort};
-        _ ->
-            %incinerate(State#state.zonedoor)
-            State
-    end.
 
 -spec install_image(DatasetUUID::fifo:uuid()) -> ok | string().
 
