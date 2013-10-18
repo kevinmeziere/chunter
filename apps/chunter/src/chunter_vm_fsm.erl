@@ -155,7 +155,7 @@ init([UUID]) ->
     libsniffle:vm_register(UUID, Hypervisor),
     timer:send_interval(900000, update_snapshots), % This is every 15 minutes
     snapshot_sizes(UUID),
-    zdoor:open(UUID, "_joyent_sshd_key_is_authorized"),
+    ok = zdoor:open(UUID, "_joyent_sshd_key_is_authorized"),
     {ok, initialized, #state{uuid = UUID, hypervisor = Hypervisor}}.
 
 %%--------------------------------------------------------------------
@@ -460,14 +460,14 @@ handle_info({zdoor, Req, Data}, StateName,
                         libsnarl:allowed(UserID, [<<"vms">>, UUID, <<"ssh">>, User]) of
                         true ->
                             lager:warning("[zonedoor:~s] granted.", [UUID]),
-                            zdoor:reply(Req, <<"1\n">>);
+                            ok = zdoor:reply(Req, <<"1\n">>);
                         _ ->
                             lager:warning("[zonedoor:~s] denied.", [UUID]),
-                            zdoor:reply(Req, <<"0\n">>)
+                            ok = zdoor:reply(Req, <<"0\n">>)
                     end;
                 _ ->
                     lager:warning("[zonedoor:~s] denied.", [UUID]),
-                    zdoor:reply(Req, <<"0\n">>)
+                    ok = zdoor:reply(Req, <<"0\n">>)
             end;
         _ ->
             lager:warning("[zonedoor:~s] can't parse auth request: ~s.", [UUID, Data]),
@@ -520,7 +520,7 @@ terminate(_Reason, _StateName, State) ->
         _ ->
             port_close(State#state.console)
     end,
-    zdoor:cose(State#state.uuid, "_joyent_sshd_key_is_authorized"),
+    ok = zdoor:close(State#state.uuid, "_joyent_sshd_key_is_authorized"),
     ok.
 
 
