@@ -13,6 +13,7 @@
 %% API
 -export([start_link/1]).
 -ignore_xref([start_link/1,
+              finalize_init/2,
               initialized/2,
               creating/2,
               loading/2,
@@ -22,6 +23,7 @@
               shutting_down/2]).
 
 -export([create/4,
+         finalize_init/2,
          load/1,
          delete/1,
          remove/1,
@@ -152,11 +154,15 @@ start_link(UUID) ->
 %%--------------------------------------------------------------------
 init([UUID]) ->
     {Hypervisor, _} = chunter_server:host_info(),
-    libsniffle:vm_register(UUID, Hypervisor),
     timer:send_interval(900000, update_snapshots), % This is every 15 minutes
+    {ok, finalize_init, #state{uuid = UUID, hypervisor = Hypervisor}, 0}.
+
+
+finalize_init(_, State) ->
+    libsniffle:vm_register(UUID, Hypervisor),
     snapshot_sizes(UUID),
-    ok = zdoor:open(UUID, "_joyent_sshd_key_is_authorized"),
-    {ok, initialized, #state{uuid = UUID, hypervisor = Hypervisor}}.
+    ok = zdoor:open(State#state.uuid, "_joyent_sshd_key_is_authorized"),
+    {ok, initialized, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -173,6 +179,7 @@ init([UUID]) ->
 %%                   {stop, Reason, NewState}
 %% @end
 %%--------------------------------------------------------------------
+
 
 -spec initialized(Action::load |
                           {create,  PackageSpec::fifo:package(),
