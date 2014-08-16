@@ -9,7 +9,6 @@
 -module(chunter_vm_auth).
 
 -behaviour(gen_server).
--export([start_link/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -record(state, {port, doors=[]}).
 
@@ -44,7 +43,7 @@ handle_call({remove_zonedoor, UUID}, _, State) ->
         io:format("Request to delete zone door: ~s~n", [UUID]),
         Data = io_lib:format("d~s~n", [UUID]),
         port_command(State#state.port, Data),
-        State1 = State#state{doors = lists:delete([UUID, State#state.doors])},
+        State1 = State#state{doors = lists:delete(UUID, State#state.doors)},
         {reply, ok, State1};
       _ ->
         {reply, ok, State}
