@@ -45,7 +45,7 @@
         type='method'
         name='start'
         exec='/opt/chunter/bin/chunter %m'
-        timeout_seconds='30'>
+        timeout_seconds='120'>
       <method_context>
         <method_environment>
           <envvar name='PATH' value='/opt/local/gnu/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin'/>
@@ -59,7 +59,7 @@
         name='restart'
         type='method'
         exec='/opt/chunter/bin/chunter %m'
-        timeout_seconds='60'>
+        timeout_seconds='120'>
       <method_context>
         <method_environment>
           <envvar name='PATH' value='/opt/local/gnu/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin'/>
@@ -72,7 +72,7 @@
         name='stop'
         type='method'
         exec='/opt/chunter/bin/chunter %m'
-        timeout_seconds='60'>
+        timeout_seconds='120'>
       <method_context>
         <method_environment>
           <envvar name='PATH' value='/opt/local/gnu/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin'/>

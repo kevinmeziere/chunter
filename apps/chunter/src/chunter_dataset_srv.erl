@@ -172,21 +172,28 @@ install_image(DatasetUUID, VM) ->
                                                           Target, [{chunk_size, Chunk}]),
                     {Cmd, B} = case fifo_s3_download:get(Download) of
                                    {ok, <<31:8, 139:8, _/binary>> = AB} ->
-                                       {code:priv_dir(chunter) ++ "/zfs_receive.gzip.sh", AB};
+                                       {"/zfs_receive.gzip.sh", AB};
                                    {ok, <<"BZh", _/binary>> = AB} ->
-                                       {code:priv_dir(chunter) ++ "/zfs_receive.bzip2.sh", AB}
+                                       {"/zfs_receive.bzip2.sh", AB}
                                end,
-                    lager:debug("not found going to run: ~s ~s.", [Cmd, DatasetUUID]),
-                    Port = open_port({spawn_executable, Cmd},
+                    Cmd1 = code:priv_dir(chunter) ++  Cmd,
+                    Ctx1 = crypto:hash_update(crypto:hash_init(sha), B),
+                    {ok, D} = ls_dataset:get(DatasetUUID),
+                    lager:debug("not found going to run: ~s ~s.",
+                                [Cmd1, DatasetUUID]),
+                    Port = open_port({spawn_executable, Cmd1},
                                      [{args, [DatasetUUID]}, use_stdio, binary,
                                       stderr_to_stdout, exit_status]),
                     port_command(Port, B),
-                    case chunter_snap:download_to_port(Port, Download, VM, 1) of
+                    case chunter_snap:download_to_port(
+                           Port, Download, VM, ft_dataset:sha1(D), Ctx1, 1) of
                         {ok, done} ->
                             finish_image(DatasetUUID);
                         E ->
                             E
-                    end
+                    end;
+                E ->
+                    E
             end
     end.
 

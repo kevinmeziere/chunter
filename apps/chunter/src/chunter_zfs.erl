@@ -87,11 +87,7 @@ zfs(Args) ->
     Port = port(?ZFS, Args),
     wait_for_port(Port, <<>>).
 
-port(Cmd, []) ->
-    open_port({spawn_executable, Cmd}, [use_stdio, binary, {line, 1000},
-                                        stderr_to_stdout, exit_status]);
-
-port(Cmd, Args) ->
+port(Cmd, Args) when is_list(Cmd)  ->
     open_port({spawn_executable, Cmd},
               [use_stdio, binary, {line, 1000}, {args, Args}, stderr_to_stdout,
                exit_status]).

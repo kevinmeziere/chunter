@@ -1,5 +1,5 @@
 #!/bin/bash
-BRANCH=dev
+BRANCH=rel
 ETC=/opt/chunter/etc
 BASE=http://release.project-fifo.net/chunter/${BRANCH}
 curl -s ${BASE}/chunter.version > /tmp/chunter.version
@@ -13,7 +13,7 @@ else
         gunzip -f chunter-latest.gz &&
         sh chunter-latest &&
         svcadm restart chunter &&
-        echo "Chunter was updated updated" ||
-        echo "Chunter update failed, sorry you've to look into that."
+        echo "Chunter was updated" ||
+        echo "Chunter update failed, sorry you will have to look into that."
     )
 fi

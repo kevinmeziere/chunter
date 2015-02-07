@@ -21,7 +21,9 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {i=0, kstat, nsq}).
+-record(state, {i=0,
+                kstat,
+                nsq = false :: boolean}).
 
 %%%===================================================================
 %%% API

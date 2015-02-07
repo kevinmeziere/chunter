@@ -126,9 +126,10 @@ handle_info({_Port, {data, {eol, Data}}}, #state{name=_Name, port=_Port} = State
         {error, unknown} ->
             %%       statsderl:increment([Name, ".vm.zonewatchdog_error"], 1, 1),
             lager:error("watchdog:zone - unknwon message: ~p", [Data]);
-        {UUID, <<"crate">>} ->
+        {_UUID, <<"crate">>} ->
             %%       statsderl:increment([Name, ".vm.create"], 1, 1),
-            chunter_vm_sup:start_child(UUID);
+            %%chunter_vm_fsm:load(UUID);
+            ok;
         {UUID, Action} ->
             %%       statsderl:increment([Name, ".vm.", UUID, ".state_change"], 1, 1),
             chunter_vm_fsm:transition(UUID, simplifie_state(Action))

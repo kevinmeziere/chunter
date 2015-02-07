@@ -17,3 +17,4 @@ erl_crash.dump
 standalone.config
 rel/chunter
 rel/chunter.tar.bz2
+fifo

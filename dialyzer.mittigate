@@ -1,8 +1,14 @@
+^chunter_perf_plugin.erl:133: Function send/2 will never be called
+^chunter_vmadm.erl:83: The pattern {'incomplete', _}
+^chunter_protocol.erl:58: Function will never be called$
+^fifo_s3_download_worker.erl:3: Callback info about the poolboy_worker behaviour is not available
+^fifo_s3_upload_worker.erl:3: Callback info about the poolboy_worker behaviour is not available
 ^erlsom
 ^jsx_parser.erl:64:
 ^jsx_parser.erl:65:
-^chunter_vmadm.erl:85: The pattern 
-^chunter_protocol.erl:58: Function will never be called$
 ^jsx_
 ^glc_code.erl:
 ^lager
+^erlcloud
+^meck
+^chunter_vm_fsm.erl:976:

@@ -2,7 +2,7 @@
 
 . /usbkey/config
 
-TESTED_VERSIONS=20140124T065835Z\|20140221T042147Z\|20140404T041131Z\|20140404T041131Z\|20140404T001635Z\|20140501T225642Z\|20140724T221203Z
+TESTED_VERSIONS=20131003T221245Z\|20140124T065835Z\|20140221T042147Z\|20140404T041131Z\|20140404T041131Z\|20140404T001635Z\|20140501T225642Z\|20141225T170427Z\|20150108T111855Z
 BAD_VERSIONS=20130627T201726Z\|20131031T235904Z\|20140710T224431AZ\|20140724T221203Z
 
 if [ -z "$DST" ]
@@ -98,31 +98,21 @@ then
     conf_admin_ip=$conf_fifo_ip
 fi
 
-CONFFILE="$DST/chunter/etc/chunter.conf"
+CONFFILE="${DST}/chunter/etc/chunter.conf"
 if [ ! -f $CONFFILE ]
 then
+    echo "Creating new configuration from example file."
     if [[ "$conf_admin_ip" = "" ]]
     then
         cp ${CONFFILE}.example ${CONFFILE}
     else
-        sed "s/^## ip = 127.0.0.1:4200/ip=$conf_admin_ip:4200/" ${CONFFILE}.example > ${CONFFILE}
-    fi
-    digest -a md5 ${CONFFILE} > ${CONFFILE}.md5
-elif [ -f ${CONFFILE}.md5 ]
-then
-    if [ "$(digest -a md5 ${CONFFILE})" = "$(cat ${CONFFILE}.md5)" ]
-    then
-        if [[ "$conf_admin_ip" = "" ]]
-        then
-            cp ${CONFFILE}.example ${CONFFILE}
-        else
-            sed "s/^## ip = 127.0.0.1:4200/ip=$conf_admin_ip:4200/" ${CONFFILE}.example > ${CONFFILE}
-        fi
-        digest -a md5 ${CONFFILE} > ${CONFFILE}.md5
+        sed "s/^ip = 127.0.0.1:4200/ip=$conf_admin_ip:4200/" ${CONFFILE}.example > ${CONFFILE}
     fi
 else
-    mv ${CONFFILE} ${CONFFILE}.old
-    cat ${CONFFILE}.old | grep -v dump_dir | sed 's/paralell/parallel/' > ${CONFFILE}
+    echo "Merging old file with new template, the original can be found in ${CONFFILE}.old."
+    $DST/chunter/share/update_config.sh ${CONFFILE}.example ${CONFFILE} > ${CONFFILE}.new &&
+        mv ${CONFFILE} ${CONFFILE}.old &&
+        mv ${CONFFILE}.new ${CONFFILE}
 fi
 
 mkdir -p "$DST/custom/smf"

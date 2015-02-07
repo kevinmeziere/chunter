@@ -38,6 +38,8 @@
 
 -define(HOST_ID_FILE, "host_id").
 
+-define(MAX_TICK, 10).
+
 -record(state, {name,
                 port,
                 sysinfo,
@@ -47,7 +49,8 @@
                 total_memory = 0,
                 reserved_memory = 0,
                 nsq = false,
-                provisioned_memory = 0}).
+                provisioned_memory = 0,
+                tick = 0}).
 
 %%%===================================================================
 %%% API
@@ -201,6 +204,7 @@ handle_call(_Request, _From, State) ->
 %%--------------------------------------------------------------------
 
 
+
 handle_cast(update_mem, State = #state{
                                    reserved_memory = ReservedMem,
                                    name = Host
@@ -301,6 +305,9 @@ handle_cast(Msg, #state{name = Name} = State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_info(update_services, State=#state{tick = _T}) when _T >= ?MAX_TICK ->
+    {noreply, State#state{services = [], tick = 0}};
+
 handle_info(update_services, State=#state{
                                       name=Host,
                                       nsq=NSQ,

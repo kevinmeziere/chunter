@@ -205,7 +205,7 @@ create_zone_data([{<<"dataset">>, Dataset}|R], Disks, Nics, Datasets) ->
     create_zone_data(R, Disks, Nics, [Dataset|Datasets]);
 
 ?RENAME(<<"create-timestamp">>, <<"created_at">>);
-?RENAME(<<"owner-id">>, <<"owner">>);
+?RENAME(<<"owner-uuid">>, <<"owner">>);
 ?RENAME(<<"dns-domain">>, <<"dns_domain">>);
 ?REMOVE(<<"ip-type">>);
 ?REMOVE(<<"debugid">>);

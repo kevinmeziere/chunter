@@ -40,7 +40,7 @@ handle_info({data,Data}, State = #state{socket = Socket,
     {noreply, State};
 
 handle_info({_Closed, _Socket}, State = #state{
-                                           type = mornal,
+                                           type = normal,
                                            closed = _Closed}) ->
     {stop, normal, State};
 
@@ -201,7 +201,8 @@ handle_message({machines, snapshot, rollback, UUID, SnapId}, State)
 handle_message({machines, snapshot, store,
                 UUID, SnapId, Img, Host, Port, Bucket, AKey, SKey, Opts},
                State)
-  when is_binary(UUID),
+  when is_binary(Img),
+       is_binary(UUID),
        is_binary(SnapId) ->
     spawn(fun() ->
                   Opts1 = [{target, Img},
@@ -210,30 +211,37 @@ handle_message({machines, snapshot, store,
                            {s3_host, Host},
                            {s3_port, Port},
                            {s3_bucket, Bucket},
-                           {quiet, true} | Opts],
-                  ls_dataset:imported(Img, <<"pending">>),
+                           {quiet, true}| Opts],
+                  ls_dataset:imported(Img, 0),
                   ls_dataset:status(Img, <<"pending">>),
-                  R = chunter_snap:upload(<<"/zones/", UUID/binary>>,
-                                          UUID, SnapId, Opts1),
-                  case R of
-                      {ok, _} ->
+				  {ok, VM} = ls_vm:get(UUID),
+				  Type = jsxd:get([<<"type">>], <<"zone">>, ft_vm:config(VM)),
+				  Path = case Type of
+							 <<"zone">> ->
+								 <<"/zones/", UUID/binary>>;
+							 <<"kvm">> ->
+								 <<"/zones/", UUID/binary, "-disk0">>
+						 end,
+                  case chunter_snap:upload(Path, UUID, SnapId, Opts1) of
+                      {ok, _, Digest} ->
+                          ls_dataset:sha1(Img, Digest),
                           ls_dataset:status(Img, <<"imported">>),
                           ls_dataset:imported(Img, 1);
                       {error, _, _} ->
                           ls_dataset:status(Img, <<"failed">>),
-                          ls_dataset:imported(Img, <<"failed">>)
+                          ls_dataset:imported(Img, 0)
                   end
           end),
     {stop, ok, State};
 
 handle_message({machines, snapshot, store, UUID, SnapId, Img}, State)
-  when is_binary(UUID),
+  when is_binary(Img),
+       is_binary(UUID),
        is_binary(SnapId) ->
     spawn(fun() ->
                   write_snapshot(UUID, SnapId, Img)
           end),
     {stop, ok, State};
-
 
 handle_message({machines, stop, UUID}, State) when is_binary(UUID) ->
     chunter_vmadm:stop(UUID),
@@ -258,7 +266,7 @@ handle_message({release, UUID}, State) ->
     {stop, chunter_lock:release(UUID), State};
 
 handle_message({machines, create, UUID, PSpec, DSpec, Config}, State)
-  when is_binary(UUID), is_list(PSpec), is_list(DSpec), is_list(Config) ->
+  when is_binary(UUID), is_tuple(PSpec), is_tuple(DSpec), is_list(Config) ->
     case chunter_lock:lock(UUID) of
         ok ->
             chunter_vm_fsm:create(UUID, PSpec, DSpec, Config),
@@ -327,7 +335,7 @@ write_snapshot(UUID, SnapId, Img) ->
     Port = open_port({spawn_executable, Cmd},
                      [{args, [UUID, SnapId]}, use_stdio, binary,
                       stderr_to_stdout, exit_status, stream]),
-    ls_dataset:imported(Img, <<"pending">>),
+    ls_dataset:imported(Img, 0),
     ls_dataset:status(Img, <<"pending">>),
     write_snapshot(Port, Img, <<>>, 0, undefined).
 
